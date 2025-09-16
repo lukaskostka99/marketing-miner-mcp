@@ -172,10 +172,12 @@ async def get_search_volume_data(
     
     return "Neočekávaný formát odpovědi z API"
 
+
 if __name__ == "__main__":
-    # Use FastMCP v2 HTTP transport (Streamable HTTP). Smithery requires this.
+    # Streamable HTTP (FastMCP v2)
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     path = os.getenv("MCP_HTTP_PATH", "/mcp")
-    print(f"[MCP] FastMCP v2 starting transport=http host={host} port={port} path={path}", flush=True)
+    print(f"[MCP] FastMCP starting transport=http host={host} port={port} path={path}", flush=True)
+    # Do not validate API token at startup; tools will check on demand
     mcp.run(transport="http", host=host, port=port, path=path)

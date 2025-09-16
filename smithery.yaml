@@ -1,10 +1,11 @@
 name: "Marketing Miner MCP"
 description: "Keyword suggestions and metrics from Marketing Miner (questions/new/trending, related keywords, volumes)"
-version: "0.3.0"
+version: "0.4.0"
 
 startCommand:
   type: http
 
+  # JSON Schema for per-connection secrets/settings shown to the user
   configSchema:
     type: object
     required: ["apiToken"]
@@ -12,22 +13,27 @@ startCommand:
       apiToken:
         type: string
         title: "Marketing Miner API Token"
-        description: "Create a token in Marketing Miner. It will be injected as MARKETING_MINER_API_TOKEN."
+        description: "Create a token in Marketing Miner. Smithery injects it as MARKETING_MINER_API_TOKEN."
       httpPath:
         type: string
         title: "HTTP Path"
-        description: "Endpoint path for the MCP server (advanced)."
         default: "/mcp"
+        description: "Advanced: change only if you modified server.py"
 
+  # Used for 'Inspect Server' & quick tests (safe placeholder; not used on startup)
+  exampleConfig:
+    apiToken: "mm_dummy_token"
+    httpPath: "/mcp"
+
+  # JS function that returns how to start the container
   commandFunction: |-
     (config) => ({
       command: "python",
       args: ["server.py"],
       env: {
-        "MARKETING_MINER_API_TOKEN": config.apiToken,
+        "MARKETING_MINER_API_TOKEN": config.apiToken || "",
+        "MCP_HTTP_PATH": config.httpPath || "/mcp",
         "HOST": "0.0.0.0",
-        "PORT": process.env.PORT || "8000",
-        "MCP_HTTP_PATH": (config.httpPath || "/mcp"),
         "PYTHONUNBUFFERED": "1"
       }
     })
