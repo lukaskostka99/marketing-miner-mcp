@@ -173,5 +173,14 @@ async def get_search_volume_data(
     return "Neočekávaný formát odpovědi z API"
 
 if __name__ == "__main__":
-    # Inicializace a spuštění serveru
-    mcp.run(transport='stdio')
+    # Spuštění serveru: ve Smithery MUSÍ běžet Streamable HTTP
+    transport = os.getenv("MCP_TRANSPORT", "http").lower()
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    path = os.getenv("MCP_HTTP_PATH", "/mcp")
+    if transport == "http":
+        mcp.run(transport="http", host=host, port=port, path=path)
+    elif transport == "sse":
+        mcp.run(transport="sse", host=host, port=port)
+    else:
+        mcp.run(transport="stdio")

@@ -19,7 +19,7 @@ python server.py
 
 Then add the server to your MCP client (e.g., Claude Desktop) as a **stdio** server running the above command.
 
-## Deploy with Smithery (GitHub-connected)
+## Deploy with Smithery (HTTP / Hosted)
 1. Push this repository to GitHub.
 2. Go to **https://smithery.ai/new**, authenticate with GitHub, and choose your repo.
 3. Smithery detects `Dockerfile` and `smithery.yaml`. In the server settings, set the **base directory** to the repo root (or subfolder if you move files later).

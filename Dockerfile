@@ -10,7 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server.py .
 
+# Default runtime env
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
+ENV MCP_HTTP_PATH=/mcp
+EXPOSE 8000
 
-# Smithery will start the server using the smithery.yaml startCommand (stdio)
+# Start Streamable HTTP transport (Smithery expects HTTP, not STDIO)
 CMD ["python", "server.py"]

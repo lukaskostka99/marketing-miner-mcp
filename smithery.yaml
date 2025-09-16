@@ -1,13 +1,14 @@
-# See: https://smithery.ai/docs/build/project-config/smithery-yaml
+# Smithery project configuration
+# Docs: https://smithery.ai/docs/build/project-config/smithery-yaml
 name: "Marketing Miner MCP"
 description: "Keyword suggestions and metrics from Marketing Miner (questions/new/trending, related keywords, volumes)"
-version: "0.1.0"
+version: "0.2.0"
 
 startCommand:
-  # Use stdio transport. (If you later migrate to HTTP, change type to "http" and provide a urlFunction.)
-  type: stdio
+  # Hosted Smithery requires Streamable HTTP (STDIO is not supported)
+  type: http
 
-  # Per-connection config exposed in Smithery UI (JSON Schema)
+  # This schema renders a per-connection settings form in Smithery UI
   configSchema:
     type: object
     required: ["apiToken"]
@@ -15,15 +16,22 @@ startCommand:
       apiToken:
         type: string
         title: "Marketing Miner API Token"
-        description: "Create token in your Marketing Miner account. It will be provided to the server as MARKETING_MINER_API_TOKEN."
+        description: "Create a token in Marketing Miner. It will be injected as MARKETING_MINER_API_TOKEN."
+      httpPath:
+        type: string
+        title: "HTTP Path"
+        description: "Endpoint path for the MCP server (advanced)."
+        default: "/mcp"
 
-  # JS function that returns the command Smithery should run
+  # Produce the container start command. Smithery will map PORT automatically.
   commandFunction: |-
     (config) => ({
       command: "python",
       args: ["server.py"],
       env: {
         "MARKETING_MINER_API_TOKEN": config.apiToken,
+        "MCP_TRANSPORT": "http",
+        "MCP_HTTP_PATH": config.httpPath || "/mcp",
         "PYTHONUNBUFFERED": "1"
       }
     })
