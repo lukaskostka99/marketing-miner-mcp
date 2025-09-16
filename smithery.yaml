@@ -1,6 +1,6 @@
 name: "Marketing Miner MCP"
 description: "Keyword suggestions and metrics from Marketing Miner (questions/new/trending, related keywords, volumes)"
-version: "0.5.1"
+version: "0.5.2"
 
 startCommand:
   type: http
@@ -12,15 +12,16 @@ startCommand:
       apiToken:
         type: string
         title: "Marketing Miner API Token"
-        description: "Create a token in Marketing Miner. Injected as MARKETING_MINER_API_TOKEN."
+        description: "Smithery injects this as MARKETING_MINER_API_TOKEN for the connection."
+        format: password
       httpPath:
         type: string
         title: "HTTP Path"
         default: "/mcp"
-        description: "Advanced: change only if you modified server.py"
+        description: "Change only if you modified server.py"
 
   exampleConfig:
-    apiToken: "mm_dummy_token"
+    apiToken: ""
     httpPath: "/mcp"
 
   commandFunction: |-
@@ -31,7 +32,7 @@ startCommand:
         "MARKETING_MINER_API_TOKEN": config.apiToken || "",
         "MCP_HTTP_PATH": config.httpPath || "/mcp",
         "HOST": "0.0.0.0",
-        "PORT": process.env.PORT,   // ensure we bind to the platform port
+        "PORT": process.env.PORT,
         "PYTHONUNBUFFERED": "1"
       }
     })
