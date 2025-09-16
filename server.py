@@ -173,14 +173,11 @@ async def get_search_volume_data(
     return "Neočekávaný formát odpovědi z API"
 
 if __name__ == "__main__":
-    # Spuštění serveru: ve Smithery MUSÍ běžet Streamable HTTP
+    # Smithery Hosted requires Streamable HTTP. Newer mcp SDK reads HOST/PORT/MCP_HTTP_PATH from env.
     transport = os.getenv("MCP_TRANSPORT", "http").lower()
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8000"))
-    path = os.getenv("MCP_HTTP_PATH", "/mcp")
-    if transport == "http":
-        mcp.run(transport="http", host=host, port=port, path=path)
-    elif transport == "sse":
-        mcp.run(transport="sse", host=host, port=port)
-    else:
-        mcp.run(transport="stdio")
+    # Ensure sane defaults for hosted containers
+    os.environ.setdefault("HOST", os.getenv("HOST", "0.0.0.0"))
+    os.environ.setdefault("PORT", os.getenv("PORT", "8000"))
+    os.environ.setdefault("MCP_HTTP_PATH", os.getenv("MCP_HTTP_PATH", "/"))
+    print(f"[MCP] Booting transport={transport} HOST={os.getenv('HOST')} PORT={os.getenv('PORT')} PATH={os.getenv('MCP_HTTP_PATH')}", flush=True)
+    mcp.run(transport=transport)
