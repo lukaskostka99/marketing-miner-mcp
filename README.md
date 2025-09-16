@@ -41,3 +41,9 @@ When you’re ready to migrate, you can:
 
 ## License
 MIT
+
+
+### Transport
+
+This server uses **FastMCP v2** with **Streamable HTTP** (path `/mcp`). On Smithery, only HTTP is supported.
+

@@ -1,6 +1,6 @@
 name: "Marketing Miner MCP"
 description: "Keyword suggestions and metrics from Marketing Miner (questions/new/trending, related keywords, volumes)"
-version: "0.2.1"
+version: "0.3.0"
 
 startCommand:
   type: http
@@ -17,7 +17,7 @@ startCommand:
         type: string
         title: "HTTP Path"
         description: "Endpoint path for the MCP server (advanced)."
-        default: "/"
+        default: "/mcp"
 
   commandFunction: |-
     (config) => ({
@@ -25,9 +25,9 @@ startCommand:
       args: ["server.py"],
       env: {
         "MARKETING_MINER_API_TOKEN": config.apiToken,
-        "MCP_TRANSPORT": "http",
-        "MCP_HTTP_PATH": (config.httpPath || "/"),
         "HOST": "0.0.0.0",
+        "PORT": process.env.PORT || "8000",
+        "MCP_HTTP_PATH": (config.httpPath || "/mcp"),
         "PYTHONUNBUFFERED": "1"
       }
     })

@@ -1,7 +1,7 @@
 from typing import Any, List, Optional, Dict, Union
 import httpx
 import os
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Inicializace FastMCP serveru
 mcp = FastMCP("marketing-miner")
@@ -173,11 +173,9 @@ async def get_search_volume_data(
     return "Neočekávaný formát odpovědi z API"
 
 if __name__ == "__main__":
-    # Smithery Hosted requires Streamable HTTP. Newer mcp SDK reads HOST/PORT/MCP_HTTP_PATH from env.
-    transport = os.getenv("MCP_TRANSPORT", "http").lower()
-    # Ensure sane defaults for hosted containers
-    os.environ.setdefault("HOST", os.getenv("HOST", "0.0.0.0"))
-    os.environ.setdefault("PORT", os.getenv("PORT", "8000"))
-    os.environ.setdefault("MCP_HTTP_PATH", os.getenv("MCP_HTTP_PATH", "/"))
-    print(f"[MCP] Booting transport={transport} HOST={os.getenv('HOST')} PORT={os.getenv('PORT')} PATH={os.getenv('MCP_HTTP_PATH')}", flush=True)
-    mcp.run(transport=transport)
+    # Use FastMCP v2 HTTP transport (Streamable HTTP). Smithery requires this.
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    path = os.getenv("MCP_HTTP_PATH", "/mcp")
+    print(f"[MCP] FastMCP v2 starting transport=http host={host} port={port} path={path}", flush=True)
+    mcp.run(transport="http", host=host, port=port, path=path)
