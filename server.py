@@ -173,11 +173,18 @@ async def get_search_volume_data(
     return "Neočekávaný formát odpovědi z API"
 
 
+
 if __name__ == "__main__":
-    # Streamable HTTP (FastMCP v2)
+    # Streamable server startup with fallback
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     path = os.getenv("MCP_HTTP_PATH", "/mcp")
-    print(f"[MCP] FastMCP starting transport=http host={host} port={port} path={path}", flush=True)
-    # Do not validate API token at startup; tools will check on demand
-    mcp.run(transport="http", host=host, port=port, path=path)
+    print(f"[MCP] Starting with env HOST={host} PORT={port} PATH={path}", flush=True)
+    transport = "http"
+    try:
+        print(f"[MCP] Trying transport={transport}", flush=True)
+        mcp.run(transport=transport, host=host, port=port, path=path)
+    except Exception as e:
+        print(f"[MCP] HTTP failed ({e!r}), falling back to SSE...", flush=True)
+        transport = "sse"
+        mcp.run(transport=transport, host=host, port=port, path=path)
