@@ -1,0 +1,29 @@
+# See: https://smithery.ai/docs/build/project-config/smithery-yaml
+name: "Marketing Miner MCP"
+description: "Keyword suggestions and metrics from Marketing Miner (questions/new/trending, related keywords, volumes)"
+version: "0.1.0"
+
+startCommand:
+  # Use stdio transport. (If you later migrate to HTTP, change type to "http" and provide a urlFunction.)
+  type: stdio
+
+  # Per-connection config exposed in Smithery UI (JSON Schema)
+  configSchema:
+    type: object
+    required: ["apiToken"]
+    properties:
+      apiToken:
+        type: string
+        title: "Marketing Miner API Token"
+        description: "Create token in your Marketing Miner account. It will be provided to the server as MARKETING_MINER_API_TOKEN."
+
+  # JS function that returns the command Smithery should run
+  commandFunction: |-
+    (config) => ({
+      command: "python",
+      args: ["server.py"],
+      env: {
+        "MARKETING_MINER_API_TOKEN": config.apiToken,
+        "PYTHONUNBUFFERED": "1"
+      }
+    })
