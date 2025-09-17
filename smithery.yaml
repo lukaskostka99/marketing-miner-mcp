@@ -1,6 +1,6 @@
 name: "marketing-miner-mcp"
 description: "MCP server pro Marketing Miner - analýza klíčových slov a hledanost"
-version: "1.0.0"
+version: "1.0.1"
 
 runtime: "container"
 
@@ -13,26 +13,11 @@ startCommand:
   path: "/mcp"
   healthCheck:
     path: "/mcp"
-  
-  configSchema:
-    type: "object"
-    required: ["marketingMinerApiToken"]
-    properties:
-      marketingMinerApiToken:
-        type: "string"
-        title: "Marketing Miner API Token"
-        description: "Váš osobní API token z Marketing Mineru"
-
-  commandFunction: |-
-    (config) => ({
-      command: "python",
-      args: ["server.py"],
-      env: {
-        MARKETING_MINER_API_TOKEN: config?.marketingMinerApiToken || "",
-        MCP_HTTP_PATH: "/mcp",
-        HOST: "0.0.0.0",
-        PORT: process.env.PORT,
-        PYTHONUNBUFFERED: "1"
-      }
-    }))
+  command: "python"
+  args: ["server.py"]
+  env:
+    MCP_HTTP_PATH: "/mcp"
+    HOST: "0.0.0.0"
+    PORT: "8000"
+    PYTHONUNBUFFERED: "1"
 
