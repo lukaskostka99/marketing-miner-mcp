@@ -1,6 +1,6 @@
 name: "marketing-miner-mcp"
 description: "MCP server pro Marketing Miner - analýza klíčových slov a hledanost"
-version: "2.0.0"
+version: "2.0.1"
 
 runtime: "container"
 

@@ -2,7 +2,11 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { 
+  CallToolRequestSchema, 
+  ListToolsRequestSchema,
+  InitializeRequestSchema 
+} from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 
 // Marketing Miner API konfigurace
@@ -93,7 +97,7 @@ async function makeMarketingMinerRequest(url: string, params: Record<string, any
 const server = new Server(
   {
     name: 'marketing-miner-mcp',
-    version: '1.0.0',
+    version: '2.0.0',
   },
   {
     capabilities: {
@@ -101,6 +105,18 @@ const server = new Server(
     },
   }
 );
+
+// Initialize handler
+server.setRequestHandler(InitializeRequestSchema, async (request) => {
+  return {
+    protocolVersion: request.params.protocolVersion,
+    capabilities: server.getCapabilities(),
+    serverInfo: {
+      name: 'marketing-miner-mcp',
+      version: '2.0.0',
+    },
+  };
+});
 
 // List tools handler
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -285,10 +301,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Marketing Miner MCP Server spuštěn');
+  // Server je připraven - žádné console výstupy!
 }
 
 main().catch((error) => {
-  console.error('Chyba při spuštění serveru:', error);
+  // Log jen do stderr při kritické chybě
+  process.stderr.write(`Kritická chyba serveru: ${error}\n`);
   process.exit(1);
 });
