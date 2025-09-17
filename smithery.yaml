@@ -1,12 +1,11 @@
 name: "marketing-miner-mcp"
-description: "MCP server for Marketing Miner (per-user API key via Connect form)."
+description: "MCP server pro Marketing Miner (API klíč zadávaný uživatelem)."
 version: "0.6.1"
 
-deployment:
-  kind: container
-  docker:
-    context: .
-    dockerfile: ./Dockerfile
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: .
 
 startCommand:
   type: http
@@ -21,7 +20,7 @@ startCommand:
       apiToken:
         type: string
         title: "Marketing Miner API Token"
-        description: "Your personal API token from Marketing Miner."
+        description: "Váš osobní API token z Marketing Mineru."
         format: password
       httpPath:
         type: string
@@ -32,8 +31,6 @@ startCommand:
     apiToken: ""
     httpPath: "/mcp"
 
-  # Tato funkce je nezbytná pro dynamické předání klíče z formuláře
-  # do proměnné prostředí kontejneru.
   commandFunction: |-
     (config) => ({
       command: "python",
