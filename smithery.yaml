@@ -1,6 +1,6 @@
 name: "marketing-miner-mcp"
 description: "MCP server pro Marketing Miner - analýza klíčových slov a hledanost. Každý uživatel připojí svůj vlastní API token přes Connect formulář."
-version: "0.7.2"
+version: "0.7.3"
 author: "Marketing Miner Integration"
 tags: ["seo", "keywords", "marketing", "analytics", "czech"]
 
@@ -20,7 +20,10 @@ build:
   dockerBuildPath: "."
 
 startCommand:
-  type: "stdio"
+  type: "http"
+  path: "/mcp"
+  healthCheck:
+    path: "/mcp"
   
   configSchema:
     type: "object"
@@ -42,6 +45,9 @@ startCommand:
       args: ["server.py", "--api-token", (config?.MARKETING_MINER_API_TOKEN ?? "")],
       env: {
         MARKETING_MINER_API_TOKEN: (config?.MARKETING_MINER_API_TOKEN ?? ""),
+        MCP_HTTP_PATH: "/mcp",
+        HOST: "0.0.0.0",
+        PORT: process.env.PORT,
         PYTHONUNBUFFERED: "1"
       }
     }))
