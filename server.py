@@ -2,12 +2,12 @@ from typing import Any, Dict, Optional
 import httpx
 from fastmcp import FastMCP
 
-# Inicializace FastMCP serveru
-mcp = FastMCP("marketing-miner")
+# --- ZMĚNA: Přidán parametr require_config=True ---
+# Tímto říkáme, že všechny nástroje budou vyžadovat objekt 'config'.
+mcp = FastMCP("marketing-miner", require_config=True)
 
 # Konstanty
 API_BASE = "https://profilers-api.marketingminer.com"
-# --- ZMĚNA: Globální API_TOKEN byl odstraněn ---
 
 # Typy suggestions
 SUGGESTIONS_TYPES = ["questions", "new", "trending"]
@@ -15,12 +15,10 @@ SUGGESTIONS_TYPES = ["questions", "new", "trending"]
 # Dostupné jazyky
 LANGUAGES = ["cs", "sk", "pl", "hu", "ro", "gb", "us"]
 
-# --- ZMĚNA: Funkce nyní přijímá api_token jako argument ---
 async def make_mm_request(url: str, params: Dict[str, Any], api_token: str) -> Dict[str, Any]:
     """Provede požadavek na Marketing Miner API s patřičným ošetřením chyb"""
     async with httpx.AsyncClient() as client:
         try:
-            # Přidáme API token z argumentu funkce do parametrů
             params["api_token"] = api_token
             
             response = await client.get(url, params=params, timeout=30.0)
@@ -30,7 +28,6 @@ async def make_mm_request(url: str, params: Dict[str, Any], api_token: str) -> D
             return {"status": "error", "message": f"Chyba při volání Marketing Miner API: {str(e)}"}
 
 @mcp.tool()
-# --- ZMĚNA: Přidán parametr 'config', který obsahuje data z formuláře ---
 async def get_keyword_suggestions(
     config: dict,
     lang: str, 
@@ -67,8 +64,7 @@ async def get_keyword_suggestions(
     if with_keyword_data is not None:
         params["with_keyword_data"] = str(with_keyword_data).lower()
 
-    # --- ZMĚNA: Získání tokenu z 'config' a jeho předání ---
-    api_token = config.get("apiToken", "")
+    api_token = config.get("apiToken")
     if not api_token:
         return "Chyba: API token nebyl zadán v konfiguraci."
     response_data = await make_mm_request(url, params, api_token)
@@ -110,7 +106,6 @@ async def get_keyword_suggestions(
     return "Neočekávaný formát odpovědi z API"
 
 @mcp.tool()
-# --- ZMĚNA: Přidán parametr 'config' ---
 async def get_search_volume_data(
     config: dict,
     lang: str, 
@@ -134,8 +129,7 @@ async def get_search_volume_data(
         "keyword": keyword
     }
     
-    # --- ZMĚNA: Získání tokenu z 'config' a jeho předání ---
-    api_token = config.get("apiToken", "")
+    api_token = config.get("apiToken")
     if not api_token:
         return "Chyba: API token nebyl zadán v konfiguraci."
     response_data = await make_mm_request(url, params, api_token)
