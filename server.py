@@ -1,6 +1,5 @@
-from typing import Any, List, Optional, Dict, Union
+from typing import Any, Dict, Optional
 import httpx
-import os
 from fastmcp import FastMCP
 
 # Inicializace FastMCP serveru
@@ -8,7 +7,7 @@ mcp = FastMCP("marketing-miner")
 
 # Konstanty
 API_BASE = "https://profilers-api.marketingminer.com"
-API_TOKEN = os.getenv("MARKETING_MINER_API_TOKEN", "")
+# --- ZMĚNA: Globální API_TOKEN byl odstraněn ---
 
 # Typy suggestions
 SUGGESTIONS_TYPES = ["questions", "new", "trending"]
@@ -16,12 +15,13 @@ SUGGESTIONS_TYPES = ["questions", "new", "trending"]
 # Dostupné jazyky
 LANGUAGES = ["cs", "sk", "pl", "hu", "ro", "gb", "us"]
 
-async def make_mm_request(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
+# --- ZMĚNA: Funkce nyní přijímá api_token jako argument ---
+async def make_mm_request(url: str, params: Dict[str, Any], api_token: str) -> Dict[str, Any]:
     """Provede požadavek na Marketing Miner API s patřičným ošetřením chyb"""
     async with httpx.AsyncClient() as client:
         try:
-            # Přidáme API token do parametrů
-            params["api_token"] = API_TOKEN
+            # Přidáme API token z argumentu funkce do parametrů
+            params["api_token"] = api_token
             
             response = await client.get(url, params=params, timeout=30.0)
             response.raise_for_status()
@@ -30,7 +30,9 @@ async def make_mm_request(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
             return {"status": "error", "message": f"Chyba při volání Marketing Miner API: {str(e)}"}
 
 @mcp.tool()
+# --- ZMĚNA: Přidán parametr 'config', který obsahuje data z formuláře ---
 async def get_keyword_suggestions(
+    config: dict,
     lang: str, 
     keyword: str,
     suggestions_type: Optional[str] = None,
@@ -40,6 +42,7 @@ async def get_keyword_suggestions(
     Získá návrhy klíčových slov z Marketing Miner API.
     
     Args:
+        config: Objekt s konfigurací od uživatele (včetně apiToken).
         lang: Kód jazyka (cs, sk, pl, hu, ro, gb, us)
         keyword: Klíčové slovo pro vyhledávání návrhů
         suggestions_type: Volitelný typ návrhů (questions, new, trending)
@@ -63,15 +66,17 @@ async def get_keyword_suggestions(
     
     if with_keyword_data is not None:
         params["with_keyword_data"] = str(with_keyword_data).lower()
-    
-    response_data = await make_mm_request(url, params)
+
+    # --- ZMĚNA: Získání tokenu z 'config' a jeho předání ---
+    api_token = config.get("apiToken", "")
+    if not api_token:
+        return "Chyba: API token nebyl zadán v konfiguraci."
+    response_data = await make_mm_request(url, params, api_token)
     
     if response_data.get("status") == "error":
         return response_data.get("message", "Nastala neznámá chyba")
     
-    # Zpracování úspěšné odpovědi
     if response_data.get("status") == "success":
-        # Upravený kód - správně přistupujeme k datové struktuře
         data = response_data.get("data", {}).get("keywords", [])
         
         if not data:
@@ -79,7 +84,6 @@ async def get_keyword_suggestions(
         
         result = []
         for keyword_data in data:
-            # Ověřujeme, že keyword_data je slovník
             if not isinstance(keyword_data, dict):
                 continue
                 
@@ -106,7 +110,9 @@ async def get_keyword_suggestions(
     return "Neočekávaný formát odpovědi z API"
 
 @mcp.tool()
+# --- ZMĚNA: Přidán parametr 'config' ---
 async def get_search_volume_data(
+    config: dict,
     lang: str, 
     keyword: str
 ) -> str:
@@ -114,6 +120,7 @@ async def get_search_volume_data(
     Získá data o hledanosti klíčového slova z Marketing Miner API.
     
     Args:
+        config: Objekt s konfigurací od uživatele (včetně apiToken).
         lang: Kód jazyka (cs, sk, pl, hu, ro, gb, us)
         keyword: Klíčové slovo pro vyhledání dat o hledanosti
     """
@@ -127,19 +134,21 @@ async def get_search_volume_data(
         "keyword": keyword
     }
     
-    response_data = await make_mm_request(url, params)
+    # --- ZMĚNA: Získání tokenu z 'config' a jeho předání ---
+    api_token = config.get("apiToken", "")
+    if not api_token:
+        return "Chyba: API token nebyl zadán v konfiguraci."
+    response_data = await make_mm_request(url, params, api_token)
     
     if response_data.get("status") == "error":
         return response_data.get("message", "Nastala neznámá chyba")
     
-    # Zpracování úspěšné odpovědi
     if response_data.get("status") == "success":
         data = response_data.get("data", [])
         
         if not data or len(data) == 0:
             return "Nebyla nalezena žádná data pro toto klíčové slovo."
         
-        # Vezmeme první výsledek (při GET requestu by měl být jen jeden)
         keyword_data = data[0]
         
         result = [
@@ -180,17 +189,14 @@ if __name__ == "__main__":
     path = os.getenv("MCP_HTTP_PATH", "/mcp")
     print(f"[MCP] Boot host={host} port={port} path={path}", flush=True)
     
-    # Seznam všech transportů k vyzkoušení
     transports_to_try = ("http", "ssehttp", "shttp", "sse")
 
     for transport in transports_to_try:
         try:
             print(f"[MCP] Trying transport={transport}", flush=True)
             
-            # Pokud je transport síťový (obsahuje "http"), předej mu síťové parametry
             if "http" in transport:
                 mcp.run(transport=transport, host=host, port=port, path=path)
-            # V opačném případě (pro stdio transporty jako 'sse') volej bez nich
             else:
                 mcp.run(transport=transport)
 
