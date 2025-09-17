@@ -2,9 +2,8 @@ from typing import Any, Dict, Optional
 import httpx
 from fastmcp import FastMCP
 
-# --- ZMĚNA: Přidán parametr require_config=True ---
-# Tímto říkáme, že všechny nástroje budou vyžadovat objekt 'config'.
-mcp = FastMCP("marketing-miner", require_config=True)
+# Inicializace FastMCP serveru (bez require_config)
+mcp = FastMCP("marketing-miner")
 
 # Konstanty
 API_BASE = "https://profilers-api.marketingminer.com"
