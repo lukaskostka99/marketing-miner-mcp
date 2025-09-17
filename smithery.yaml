@@ -1,48 +1,31 @@
 name: "marketing-miner-mcp"
-description: "MCP server for Marketing Miner (per-user API key via Connect form)."
-version: "0.6.1"
-
-runtime: "container"
-
-build:
-  dockerfile: "./Dockerfile"
-  dockerBuildPath: "."
+description: "MCP server for Marketing Miner (per-user API key via Connect)."
+version: "0.6.2"
 
 startCommand:
-  type: http
-  path: /mcp
-  healthCheck:
-    # FastMCP typicky vrátí 200 na /mcp – /mcp/health často neexistuje
-    path: /mcp
+  type: stdio
 
   configSchema:
     type: object
-    required: ["MARKETING_MINER_API_TOKEN"]
+    required: ["apiToken"]
     properties:
-      MARKETING_MINER_API_TOKEN:
+      apiToken:
         type: string
         title: "Marketing Miner API Token"
-        description: "Osobní API token z Marketing Mineru."
+        description: "Vložte svůj osobní API token z Marketing Mineru."
         format: password
-      MCP_HTTP_PATH:
-        type: string
-        title: "HTTP Path"
-        default: "/mcp"
 
   exampleConfig:
-    MARKETING_MINER_API_TOKEN: ""
-    MCP_HTTP_PATH: "/mcp"
+    apiToken: ""
 
   commandFunction: |-
     (config) => ({
       command: "python",
-      // Fallback: token jde i přes CLI argument, kdyby ENV selhalo
-      args: ["server.py", "--api-token", config.MARKETING_MINER_API_TOKEN || ""],
+      // --stdio je jen přepínač pro náš server, ať ho vynutíme
+      args: ["server.py", "--stdio", "--api-token", config.apiToken || ""],
       env: {
-        "MARKETING_MINER_API_TOKEN": config.MARKETING_MINER_API_TOKEN || "",
-        "MCP_HTTP_PATH": config.MCP_HTTP_PATH || "/mcp",
-        "HOST": "0.0.0.0",
-        "PORT": process.env.PORT,     // Smithery port (fallback máš v kódu na 8000)
+        // 1) Přímé mapování do ENV (standardní vzor u Smithery)
+        "MARKETING_MINER_API_TOKEN": config.apiToken || "",
         "PYTHONUNBUFFERED": "1"
       }
     }))
