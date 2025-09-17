@@ -110,10 +110,12 @@ const server = new Server(
 server.setRequestHandler(InitializeRequestSchema, async (request) => {
   return {
     protocolVersion: request.params.protocolVersion,
-    capabilities: server.getCapabilities(),
+    capabilities: {
+      tools: {},
+    },
     serverInfo: {
       name: 'marketing-miner-mcp',
-      version: '2.0.0',
+      version: '2.0.1',
     },
   };
 });
