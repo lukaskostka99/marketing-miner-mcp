@@ -40,10 +40,10 @@ Nejjednodušší způsob použití je přes Smithery hosted URL:
 ## Lokální spuštění
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+npm install
+npm run build
 export MARKETING_MINER_API_TOKEN=YOUR_TOKEN
-python server.py
+npm start
 ```
 
 ## API Token

@@ -1,8 +1,18 @@
-FROM python:3.11-slim
-ENV PYTHONUNBUFFERED=1 HOST=0.0.0.0 PORT=8000 MCP_HTTP_PATH=/mcp
+FROM node:20-slim
+
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY server.py .
-EXPOSE 8000
-CMD ["python", "server.py"]
+
+# Kopíruj package files
+COPY package.json tsconfig.json ./
+
+# Instaluj dependencies
+RUN npm install
+
+# Kopíruj source code
+COPY src/ ./src/
+
+# Build TypeScript
+RUN npm run build
+
+# Spusť server
+CMD ["npm", "start"]

@@ -1,6 +1,6 @@
 name: "marketing-miner-mcp"
 description: "MCP server pro Marketing Miner - analýza klíčových slov a hledanost"
-version: "1.0.1"
+version: "2.0.0"
 
 runtime: "container"
 
@@ -9,15 +9,7 @@ build:
   dockerBuildPath: "."
 
 startCommand:
-  type: "http"
-  path: "/mcp"
-  healthCheck:
-    path: "/mcp"
-  command: "python"
-  args: ["server.py"]
-  env:
-    MCP_HTTP_PATH: "/mcp"
-    HOST: "0.0.0.0"
-    PORT: "8000"
-    PYTHONUNBUFFERED: "1"
+  type: "stdio"
+  command: "node"
+  args: ["dist/index.js"]
 
