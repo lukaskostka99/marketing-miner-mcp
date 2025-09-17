@@ -97,7 +97,7 @@ async function makeMarketingMinerRequest(url: string, params: Record<string, any
 const server = new Server(
   {
     name: 'marketing-miner-mcp',
-    version: '2.0.0',
+    version: '2.0.2',
   },
   {
     capabilities: {
@@ -108,6 +108,8 @@ const server = new Server(
 
 // Initialize handler
 server.setRequestHandler(InitializeRequestSchema, async (request) => {
+  // Diagnostický log do stderr - neměl by rušit MCP komunikaci
+  process.stderr.write('--- MCP: Initialize request received ---\n');
   return {
     protocolVersion: request.params.protocolVersion,
     capabilities: {
@@ -115,7 +117,7 @@ server.setRequestHandler(InitializeRequestSchema, async (request) => {
     },
     serverInfo: {
       name: 'marketing-miner-mcp',
-      version: '2.0.1',
+      version: '2.0.2',
     },
   };
 });
