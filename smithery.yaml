@@ -14,7 +14,21 @@ startCommand:
   type: "http"
   path: "/mcp"
   healthCheck:
-    path: "/mcp"   # FastMCP typicky odpoví 200 na /mcp
+    path: "/mcp"
+  
+  configSchema:
+    type: "object"
+    title: "Marketing Miner Konfigurace"
+    description: "Konfigurace připojení k Marketing Miner API"
+    required: ["MARKETING_MINER_API_TOKEN"]
+    properties:
+      MARKETING_MINER_API_TOKEN:
+        type: "string"
+        title: "Marketing Miner API Token"
+        description: "Váš osobní API token z Marketing Mineru. Získejte ho na https://www.marketingminer.com/cs/features/api"
+        format: "password"
+        minLength: 10
+    additionalProperties: false
 
   commandFunction: |-
     (config) => ({
@@ -29,20 +43,3 @@ startCommand:
       }
     }))
 
-configSchema:
-  type: "object"
-  title: "Marketing Miner Konfigurace"
-  description: "Konfigurace připojení k Marketing Miner API"
-  required: ["MARKETING_MINER_API_TOKEN"]
-  properties:
-    MARKETING_MINER_API_TOKEN:
-      type: "string"
-      title: "API Token"
-      description: "Váš osobní API token z Marketing Mineru. Získejte ho na https://www.marketingminer.com/cs/features/api"
-      format: "password"
-      minLength: 10
-      pattern: "^[A-Za-z0-9_-]+$"
-  additionalProperties: false
-
-exampleConfig:
-  MARKETING_MINER_API_TOKEN: "your-api-token-here"
