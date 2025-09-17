@@ -14,9 +14,6 @@ startCommand:
   healthCheck:
     path: /mcp/health
 
-  # Tato sekce generuje formulář pro připojení.
-  # fastmcp framework automaticky vezme zde zadané hodnoty
-  # a předá je jako 'config' objekt do vašich nástrojů.
   configSchema:
     type: object
     required: ["apiToken"]
@@ -31,10 +28,12 @@ startCommand:
         title: "HTTP Path"
         default: "/mcp"
 
-  # Příklad pro interní nástroje platformy Smithery.
   exampleConfig:
     apiToken: ""
     httpPath: "/mcp"
 
-  # --- ZMĚNA: Sekce 'env' a 'commandFunction' byly odstraněny ---
-  # Nejsou již potřeba, protože token se nepředává přes proměnné prostředí.
+  # --- TATO SEKCE JE NEZBYTNÁ ---
+  # Říká platformě, aby hodnoty z configSchema aktivně předávala dál.
+  env:
+    MARKETING_MINER_API_TOKEN: "{{ apiToken }}"
+    MCP_HTTP_PATH: "{{ httpPath }}"
