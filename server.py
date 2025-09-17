@@ -1,12 +1,16 @@
 from typing import Any, Dict, Optional
 import httpx
+import os
 from fastmcp import FastMCP
 
-# Inicializace FastMCP serveru (bez require_config)
+# Inicializace FastMCP serveru
 mcp = FastMCP("marketing-miner")
 
 # Konstanty
 API_BASE = "https://profilers-api.marketingminer.com"
+# VRÁCENO: Načítání tokenu z proměnné prostředí při startu.
+# Smithery zajistí, že je tato proměnná správně nastavena.
+API_TOKEN = os.getenv("MARKETING_MINER_API_TOKEN", "")
 
 # Typy suggestions
 SUGGESTIONS_TYPES = ["questions", "new", "trending"]
@@ -14,21 +18,26 @@ SUGGESTIONS_TYPES = ["questions", "new", "trending"]
 # Dostupné jazyky
 LANGUAGES = ["cs", "sk", "pl", "hu", "ro", "gb", "us"]
 
-async def make_mm_request(url: str, params: Dict[str, Any], api_token: str) -> Dict[str, Any]:
+# VRÁCENO: Funkce opět používá globální API_TOKEN a nepřijímá ho jako argument.
+async def make_mm_request(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Provede požadavek na Marketing Miner API s patřičným ošetřením chyb"""
     async with httpx.AsyncClient() as client:
         try:
-            params["api_token"] = api_token
+            # Přidáme API token do parametrů
+            params["api_token"] = API_TOKEN
             
             response = await client.get(url, params=params, timeout=30.0)
             response.raise_for_status()
             return response.json()
         except Exception as e:
+            # Přidána kontrola na chybějící token
+            if not API_TOKEN:
+                return {"status": "error", "message": "Chyba: API token pro Marketing Miner není nastaven. Prosím, nastavte ho v konfiguraci."}
             return {"status": "error", "message": f"Chyba při volání Marketing Miner API: {str(e)}"}
 
 @mcp.tool()
+# VRÁCENO: Odstraněn parametr 'config' z definice funkce.
 async def get_keyword_suggestions(
-    config: dict,
     lang: str, 
     keyword: str,
     suggestions_type: Optional[str] = None,
@@ -38,7 +47,6 @@ async def get_keyword_suggestions(
     Získá návrhy klíčových slov z Marketing Miner API.
     
     Args:
-        config: Objekt s konfigurací od uživatele (včetně apiToken).
         lang: Kód jazyka (cs, sk, pl, hu, ro, gb, us)
         keyword: Klíčové slovo pro vyhledávání návrhů
         suggestions_type: Volitelný typ návrhů (questions, new, trending)
@@ -62,11 +70,9 @@ async def get_keyword_suggestions(
     
     if with_keyword_data is not None:
         params["with_keyword_data"] = str(with_keyword_data).lower()
-
-    api_token = config.get("apiToken")
-    if not api_token:
-        return "Chyba: API token nebyl zadán v konfiguraci."
-    response_data = await make_mm_request(url, params, api_token)
+    
+    # VRÁCENO: Přímé volání bez předávání tokenu.
+    response_data = await make_mm_request(url, params)
     
     if response_data.get("status") == "error":
         return response_data.get("message", "Nastala neznámá chyba")
@@ -105,8 +111,8 @@ async def get_keyword_suggestions(
     return "Neočekávaný formát odpovědi z API"
 
 @mcp.tool()
+# VRÁCENO: Odstraněn parametr 'config' z definice funkce.
 async def get_search_volume_data(
-    config: dict,
     lang: str, 
     keyword: str
 ) -> str:
@@ -114,7 +120,6 @@ async def get_search_volume_data(
     Získá data o hledanosti klíčového slova z Marketing Miner API.
     
     Args:
-        config: Objekt s konfigurací od uživatele (včetně apiToken).
         lang: Kód jazyka (cs, sk, pl, hu, ro, gb, us)
         keyword: Klíčové slovo pro vyhledání dat o hledanosti
     """
@@ -128,10 +133,8 @@ async def get_search_volume_data(
         "keyword": keyword
     }
     
-    api_token = config.get("apiToken")
-    if not api_token:
-        return "Chyba: API token nebyl zadán v konfiguraci."
-    response_data = await make_mm_request(url, params, api_token)
+    # VRÁCENO: Přímé volání bez předávání tokenu.
+    response_data = await make_mm_request(url, params)
     
     if response_data.get("status") == "error":
         return response_data.get("message", "Nastala neznámá chyba")
