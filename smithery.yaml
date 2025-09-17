@@ -12,37 +12,37 @@ startCommand:
   type: http
   path: /mcp
   healthCheck:
-    # FastMCP typicky 200ku vrátí na /mcp – /mcp/health nemusí existovat
+    # FastMCP typicky vrátí 200 na /mcp – /mcp/health často neexistuje
     path: /mcp
 
   configSchema:
     type: object
-    required: ["apiToken"]
+    required: ["MARKETING_MINER_API_TOKEN"]
     properties:
-      apiToken:
+      MARKETING_MINER_API_TOKEN:
         type: string
         title: "Marketing Miner API Token"
-        description: "Váš osobní API token z Marketing Mineru."
+        description: "Osobní API token z Marketing Mineru."
         format: password
-      httpPath:
+      MCP_HTTP_PATH:
         type: string
         title: "HTTP Path"
         default: "/mcp"
 
   exampleConfig:
-    apiToken: ""
-    httpPath: "/mcp"
+    MARKETING_MINER_API_TOKEN: ""
+    MCP_HTTP_PATH: "/mcp"
 
   commandFunction: |-
     (config) => ({
       command: "python",
-      // Předáme token jak přes ENV, tak i přes CLI – dvojité jištění
-      args: ["server.py", "--api-token", config.apiToken || ""],
+      // Fallback: token jde i přes CLI argument, kdyby ENV selhalo
+      args: ["server.py", "--api-token", config.MARKETING_MINER_API_TOKEN || ""],
       env: {
-        "MARKETING_MINER_API_TOKEN": config.apiToken || "",
-        "MCP_HTTP_PATH": config.httpPath || "/mcp",
+        "MARKETING_MINER_API_TOKEN": config.MARKETING_MINER_API_TOKEN || "",
+        "MCP_HTTP_PATH": config.MCP_HTTP_PATH || "/mcp",
         "HOST": "0.0.0.0",
-        "PORT": process.env.PORT,         // Smithery port (typicky 8081)
+        "PORT": process.env.PORT,     // Smithery port (fallback máš v kódu na 8000)
         "PYTHONUNBUFFERED": "1"
       }
     }))
