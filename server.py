@@ -1,14 +1,26 @@
 from typing import Any, List, Optional, Dict, Union
 import httpx
 import os
+import sys
 from fastmcp import FastMCP
 
 # Inicializace FastMCP serveru
 mcp = FastMCP("marketing-miner")
 
+# --- ÚPRAVA: Načtení API tokenu s vylepšenou diagnostikou ---
+# Načteme proměnnou prostředí. Pokud není nastavena, bude hodnota None.
+API_TOKEN = os.getenv("MARKETING_MINER_API_TOKEN")
+
+# Diagnostický výpis do logu kontejneru pro snadnější ladění.
+# Pro bezpečnost nikdy nevypisujeme samotný token, pouze jeho existenci a délku.
+if API_TOKEN:
+    print(f"[MCP] INFO: Načten API token MARKETING_MINER_API_TOKEN o délce {len(API_TOKEN)}.", flush=True)
+else:
+    print("[MCP] WARNING: Proměnná prostředí MARKETING_MINER_API_TOKEN není nastavena. Server očekává, že bude dodána z formuláře.", flush=True)
+# --- KONEC ÚPRAVY ---
+
 # Konstanty
 API_BASE = "https://profilers-api.marketingminer.com"
-API_TOKEN = os.getenv("MARKETING_MINER_API_TOKEN", "")
 
 # Typy suggestions
 SUGGESTIONS_TYPES = ["questions", "new", "trending"]
@@ -18,6 +30,11 @@ LANGUAGES = ["cs", "sk", "pl", "hu", "ro", "gb", "us"]
 
 async def make_mm_request(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Provede požadavek na Marketing Miner API s patřičným ošetřením chyb"""
+    # --- ÚPRAVA: Kontrola existence API tokenu před odesláním požadavku ---
+    if not API_TOKEN:
+        return {"status": "error", "message": "Chyba: Marketing Miner API token nebyl zadán. Připojte se znovu a zadejte jej prosím v konfiguračním formuláři."}
+    # --- KONEC ÚPRAVY ---
+    
     async with httpx.AsyncClient() as client:
         try:
             # Přidáme API token do parametrů
@@ -26,8 +43,10 @@ async def make_mm_request(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
             response = await client.get(url, params=params, timeout=30.0)
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as e:
+            return {"status": "error", "message": f"Chyba API ({e.response.status_code}): {e.response.text}"}
         except Exception as e:
-            return {"status": "error", "message": f"Chyba při volání Marketing Miner API: {str(e)}"}
+            return {"status": "error", "message": f"Obecná chyba při volání Marketing Miner API: {str(e)}"}
 
 @mcp.tool()
 async def get_keyword_suggestions(
@@ -37,119 +56,63 @@ async def get_keyword_suggestions(
     with_keyword_data: Optional[bool] = False
 ) -> str:
     """
-    Získá návrhy klíčových slov z Marketing Miner API.
-    
-    Args:
-        lang: Kód jazyka (cs, sk, pl, hu, ro, gb, us)
-        keyword: Klíčové slovo pro vyhledávání návrhů
-        suggestions_type: Volitelný typ návrhů (questions, new, trending)
-        with_keyword_data: Zda zahrnout rozšířená data o klíčových slovech
+    Získá návrhy klíčových slov z Marketing Mineru pro daný jazyk a klíčové slovo.
     """
     if lang not in LANGUAGES:
-        return f"Nepodporovaný jazyk: {lang}. Podporované jazyky jsou: {', '.join(LANGUAGES)}"
-    
-    if suggestions_type and suggestions_type not in SUGGESTIONS_TYPES:
-        return f"Nepodporovaný typ návrhů: {suggestions_type}. Podporované typy jsou: {', '.join(SUGGESTIONS_TYPES)}"
-    
-    url = f"{API_BASE}/keywords/suggestions"
-    
-    params = {
-        "lang": lang,
-        "keyword": keyword
-    }
-    
-    if suggestions_type:
+        return f"Nepodporovaný jazyk: {lang}. Dostupné jazyky jsou: {', '.join(LANGUAGES)}"
+
+    params = {"lang": lang, "keyword": keyword}
+    if suggestions_type and suggestions_type in SUGGESTIONS_TYPES:
         params["suggestions_type"] = suggestions_type
     
-    if with_keyword_data is not None:
-        params["with_keyword_data"] = str(with_keyword_data).lower()
+    if with_keyword_data:
+        params["with_keyword_data"] = "true"
+
+    data = await make_mm_request(f"{API_BASE}/suggestions", params)
     
-    response_data = await make_mm_request(url, params)
+    if data.get("status") == "error":
+        return data.get("message", "Neznámá chyba")
+
+    if "suggestions" in data:
+        suggestions = data["suggestions"]
+        output = [f"Návrhy pro '{keyword}':"]
+        for item in suggestions:
+            line = f"- {item['keyword']}"
+            if "search_volume" in item:
+                line += f" (Hledanost: {item['search_volume']})"
+            output.append(line)
+        return "\n".join(output)
     
-    if response_data.get("status") == "error":
-        return response_data.get("message", "Nastala neznámá chyba")
-    
-    # Zpracování úspěšné odpovědi
-    if response_data.get("status") == "success":
-        # Upravený kód - správně přistupujeme k datové struktuře
-        data = response_data.get("data", {}).get("keywords", [])
-        
-        if not data:
-            return "Nebyla nalezena žádná data pro tento dotaz."
-        
-        result = []
-        for keyword_data in data:
-            # Ověřujeme, že keyword_data je slovník
-            if not isinstance(keyword_data, dict):
-                continue
-                
-            keyword_info = [f"Klíčové slovo: {keyword_data.get('keyword', 'N/A')}"]
-            
-            if "search_volume" in keyword_data:
-                keyword_info.append(f"Hledanost: {keyword_data.get('search_volume', 'N/A')}")
-            
-            if "cpc" in keyword_data and keyword_data.get("cpc"):
-                cpc = keyword_data.get("cpc", {})
-                keyword_info.append(f"CPC: {cpc.get('value', 'N/A')} {cpc.get('currency_code', '')}")
-            
-            if "difficulty" in keyword_data and with_keyword_data:
-                keyword_info.append(f"Obtížnost: {keyword_data.get('difficulty', 'N/A')}")
-            
-            if "serp_features" in keyword_data and with_keyword_data and keyword_data.get("serp_features"):
-                features = ", ".join(keyword_data.get("serp_features", []))
-                keyword_info.append(f"SERP features: {features}")
-            
-            result.append(" | ".join(keyword_info))
-        
-        return "\n".join(result)
-    
-    return "Neočekávaný formát odpovědi z API"
+    return "Odpověď z API neobsahovala očekávaná data."
+
 
 @mcp.tool()
-async def get_search_volume_data(
-    lang: str, 
+async def get_keyword_data(
+    lang: str,
     keyword: str
 ) -> str:
     """
-    Získá data o hledanosti klíčového slova z Marketing Miner API.
-    
-    Args:
-        lang: Kód jazyka (cs, sk, pl, hu, ro, gb, us)
-        keyword: Klíčové slovo pro vyhledání dat o hledanosti
+    Získá detailní data o klíčovém slově, jako je hledanost, CPC a meziroční změny.
     """
     if lang not in LANGUAGES:
-        return f"Nepodporovaný jazyk: {lang}. Podporované jazyky jsou: {', '.join(LANGUAGES)}"
-    
-    url = f"{API_BASE}/keywords/search-volume-data"
-    
-    params = {
-        "lang": lang,
-        "keyword": keyword
-    }
-    
-    response_data = await make_mm_request(url, params)
-    
-    if response_data.get("status") == "error":
-        return response_data.get("message", "Nastala neznámá chyba")
-    
-    # Zpracování úspěšné odpovědi
-    if response_data.get("status") == "success":
-        data = response_data.get("data", [])
+        return f"Nepodporovaný jazyk: {lang}. Dostupné jazyky jsou: {', '.join(LANGUAGES)}"
+
+    params = {"lang": lang, "keyword": keyword}
+    data = await make_mm_request(f"{API_BASE}/keyword-data", params)
+
+    if data.get("status") == "error":
+        return data.get("message", "Neznámá chyba")
+
+    if "keywords" in data and keyword in data["keywords"]:
+        keyword_data = data["keywords"][keyword]
+        result = [f"Data pro klíčové slovo: '{keyword}'"]
         
-        if not data or len(data) == 0:
-            return "Nebyla nalezena žádná data pro toto klíčové slovo."
+        if "search_volume" in keyword_data:
+            result.append(f"Průměrná měsíční hledanost: {keyword_data.get('search_volume')}")
         
-        # Vezmeme první výsledek (při GET requestu by měl být jen jeden)
-        keyword_data = data[0]
-        
-        result = [
-            f"Klíčové slovo: {keyword_data.get('keyword', 'N/A')}",
-            f"Hledanost: {keyword_data.get('search_volume', 'N/A')}"
-        ]
-        
-        if "cpc" in keyword_data and keyword_data.get("cpc"):
+        if "cpc" in keyword_data:
             cpc = keyword_data.get("cpc", {})
-            result.append(f"CPC: {cpc.get('value', 'N/A')} {cpc.get('currency_code', '')}")
+            result.append(f"CPC: {cpc.get('value')} {cpc.get('currency')}")
         
         if "yoy_change" in keyword_data:
             yoy = keyword_data.get("yoy_change")
@@ -163,8 +126,8 @@ async def get_search_volume_data(
             monthly_data = keyword_data.get("monthly_sv", {})
             monthly_result = ["Měsíční hledanost:"]
             
-            for month, volume in monthly_data.items():
-                monthly_result.append(f"  - Měsíc {month}: {volume}")
+            for month, volume in sorted(monthly_data.items()):
+                monthly_result.append(f"  - {month}: {volume}")
             
             result.extend(monthly_result)
         
@@ -174,7 +137,7 @@ async def get_search_volume_data(
 
 
 if __name__ == "__main__":
-    import os, sys, traceback
+    import traceback
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     path = os.getenv("MCP_HTTP_PATH", "/mcp")
@@ -183,9 +146,7 @@ if __name__ == "__main__":
         try:
             print(f"[MCP] Trying transport={transport}", flush=True)
             mcp.run(transport=transport, host=host, port=port, path=path)
-            sys.exit(0)
+            print(f"[MCP] Transport failed={transport}", flush=True)
         except Exception as e:
-            print(f"[MCP] Transport {transport} failed: {e!r}", flush=True)
+            print(f"[MCP] Transport failed={transport} error='{e}'", file=sys.stderr, flush=True)
             traceback.print_exc()
-    print("[MCP] ERROR: no working transport found", flush=True)
-    sys.exit(1)
