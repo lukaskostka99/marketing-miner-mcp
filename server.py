@@ -173,18 +173,19 @@ async def get_search_volume_data(
     return "Neočekávaný formát odpovědi z API"
 
 
-
 if __name__ == "__main__":
-    # Streamable server startup with fallback
+    import os, sys, traceback
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     path = os.getenv("MCP_HTTP_PATH", "/mcp")
-    print(f"[MCP] Starting with env HOST={host} PORT={port} PATH={path}", flush=True)
-    transport = "http"
-    try:
-        print(f"[MCP] Trying transport={transport}", flush=True)
-        mcp.run(transport=transport, host=host, port=port, path=path)
-    except Exception as e:
-        print(f"[MCP] HTTP failed ({e!r}), falling back to SSE...", flush=True)
-        transport = "sse"
-        mcp.run(transport=transport, host=host, port=port, path=path)
+    print(f"[MCP] Boot host={host} port={port} path={path}", flush=True)
+    for transport in ("http", "ssehttp", "shttp", "sse"):
+        try:
+            print(f"[MCP] Trying transport={transport}", flush=True)
+            mcp.run(transport=transport, host=host, port=port, path=path)
+            sys.exit(0)
+        except Exception as e:
+            print(f"[MCP] Transport {transport} failed: {e!r}", flush=True)
+            traceback.print_exc()
+    print("[MCP] ERROR: no working transport found", flush=True)
+    sys.exit(1)

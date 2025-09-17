@@ -1,5 +1,6 @@
-name: "Marketing Miner MCP"
-version: "1.0.0"
+name: "marketing-miner-mcp"
+description: "MCP server for Marketing Miner: keyword suggestions & search volume. Each user connects with their own API key."
+version: "0.6.0"
 
 startCommand:
   type: http
@@ -11,14 +12,15 @@ startCommand:
       apiToken:
         type: string
         title: "Marketing Miner API Token"
-        description: "Předá se do env jako MARKETING_MINER_API_TOKEN (per-session)."
-        format: password        # maskování v UI
+        description: "This is YOUR personal API token from Marketing Miner. Stored per-connection."
+        format: password
       httpPath:
         type: string
+        title: "HTTP Path"
         default: "/mcp"
 
   exampleConfig:
-    apiToken: ""               # prázdné! žádný leak
+    apiToken: ""
     httpPath: "/mcp"
 
   commandFunction: |-

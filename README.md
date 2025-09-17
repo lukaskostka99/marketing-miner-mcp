@@ -1,11 +1,10 @@
 # Marketing Miner MCP
 
-Python MCP server exposing Marketing Miner keyword endpoints.
+Model Context Protocol (MCP) server for Marketing Miner keyword endpoints.
 
-## Deploy on Smithery
-- `startCommand.type: http` (Streamable HTTP)
-- Per-connection secrets in **Session Config** (UI): `apiToken` → injected as `MARKETING_MINER_API_TOKEN`
-- Default endpoint: `http://HOST:PORT/mcp`
+## Connect (per-user API key)
+- Use the **Connect** form on Smithery (generated from `configSchema`) and enter your `Marketing Miner API Token`.
+- Smithery passes it only to your session as `MARKETING_MINER_API_TOKEN`.
 
 ## Local run
 ```bash
