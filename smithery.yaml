@@ -14,7 +14,7 @@ startCommand:
   healthCheck:
     path: /mcp/health
 
-  # Tato sekce generuje formulář v UI
+  # Formulář, který se zobrazí uživateli v UI
   configSchema:
     type: object
     required: ["apiToken"]
@@ -29,13 +29,23 @@ startCommand:
         title: "HTTP Path"
         default: "/mcp"
 
-  # Tato sekce říká Smithery: "Vezmi hodnotu z pole 'apiToken' 
-  # a nastav ji jako proměnnou prostředí MARKETING_MINER_API_TOKEN pro server."
-  env:
-    MARKETING_MINER_API_TOKEN: "{{ apiToken }}"
-    MCP_HTTP_PATH: "{{ httpPath }}"
-
-  # Příklad pro interní nástroje (Playground/Inspect)
   exampleConfig:
-    apiToken: "" # Pro testování se použije prázdný token
+    apiToken: ""
     httpPath: "/mcp"
+
+  # TATO FUNKCE JE KLÍČOVÁ.
+  # Dynamicky vytváří příkaz pro spuštění serveru a nastavuje proměnné
+  # prostředí na základě hodnot zadaných uživatelem ve formuláři (config).
+  # Toto je správný způsob, jak předat klíč serveru.
+  commandFunction: |-
+    (config) => ({
+      command: "python",
+      args: ["server.py"],
+      env: {
+        "MARKETING_MINER_API_TOKEN": config.apiToken || "",
+        "MCP_HTTP_PATH": config.httpPath || "/mcp",
+        "HOST": "0.0.0.0",
+        "PORT": process.env.PORT,
+        "PYTHONUNBUFFERED": "1"
+      }
+    })
