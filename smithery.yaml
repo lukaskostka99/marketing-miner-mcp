@@ -11,11 +11,10 @@ deployment:
 startCommand:
   type: http
   path: /mcp
-  # Optional health check (server may ignore):
   healthCheck:
     path: /mcp/health
 
-  # Session config -> renders **Connect form**
+  # Tato sekce definuje formulář, který se zobrazí uživateli pro zadání API klíče.
   configSchema:
     type: object
     required: ["apiToken"]
@@ -30,12 +29,19 @@ startCommand:
         title: "HTTP Path"
         default: "/mcp"
 
-  # Example used by Playground/Inspect only
+  # Příklad pro interní nástroje platformy Smithery.
   exampleConfig:
     apiToken: ""
     httpPath: "/mcp"
 
-  # Map session config to env for the container (supported by container runtime)
-  env:
-    MARKETING_MINER_API_TOKEN: "{{ apiToken }}"
-    MCP_HTTP_PATH: "{{ httpPath }}"
+  # Tato funkce se spustí na platformě Smithery poté, co uživatel vyplní formulář.
+  # Vezme hodnoty z formuláře (objekt 'config') a nastaví je jako proměnné
+  # prostředí pro spouštěný kontejner.
+  commandFunction: |-
+    (config) => ({
+      command: ["python", "server.py"],
+      env: {
+        "MARKETING_MINER_API_TOKEN": config.apiToken || "",
+        "MCP_HTTP_PATH": config.httpPath || "/mcp"
+      }
+    })
