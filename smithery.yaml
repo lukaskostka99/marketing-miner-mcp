@@ -14,7 +14,7 @@ startCommand:
   healthCheck:
     path: /mcp/health
 
-  # Tato sekce definuje formulář, který se zobrazí uživateli pro zadání API klíče.
+  # Tato sekce generuje formulář pro připojení v rozhraní Smithery.
   configSchema:
     type: object
     required: ["apiToken"]
@@ -34,14 +34,10 @@ startCommand:
     apiToken: ""
     httpPath: "/mcp"
 
-  # Tato funkce se spustí na platformě Smithery poté, co uživatel vyplní formulář.
-  # Vezme hodnoty z formuláře (objekt 'config') a nastaví je jako proměnné
-  # prostředí pro spouštěný kontejner.
-  commandFunction: |-
-    (config) => ({
-      command: ["python", "server.py"],
-      env: {
-        "MARKETING_MINER_API_TOKEN": config.apiToken || "",
-        "MCP_HTTP_PATH": config.httpPath || "/mcp"
-      }
-    })
+  # --- DŮLEŽITÁ ZMĚNA ---
+  # Toto je jediný a správný způsob, jak předat hodnoty z formuláře
+  # ('apiToken' a 'httpPath') jako proměnné prostředí do kontejneru.
+  # Používá se jednoduchá šablona {{ název_pole_z_formuláře }}.
+  env:
+    MARKETING_MINER_API_TOKEN: "{{ apiToken }}"
+    MCP_HTTP_PATH: "{{ httpPath }}"
