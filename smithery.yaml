@@ -39,17 +39,3 @@ startCommand:
   env:
     MARKETING_MINER_API_TOKEN: "{{ apiToken }}"
     MCP_HTTP_PATH: "{{ httpPath }}"
-
-  # For runtimes that prefer computing the command/env dynamically
-  commandFunction: |-
-    (config) => ({
-      command: "python",
-      args: ["server.py"],
-      env: {
-        "MARKETING_MINER_API_TOKEN": config.apiToken || "",
-        "MCP_HTTP_PATH": config.httpPath || "/mcp",
-        "HOST": "0.0.0.0",
-        "PORT": process.env.PORT,
-        "PYTHONUNBUFFERED": "1"
-      }
-    })
