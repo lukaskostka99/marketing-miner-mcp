@@ -1,10 +1,21 @@
 name: "marketing-miner-mcp"
-description: "MCP server for Marketing Miner: keyword suggestions & search volume. Each user connects with their own API key."
-version: "0.6.0"
+description: "MCP server for Marketing Miner (per-user API key via Connect form)."
+version: "0.6.1"
+
+deployment:
+  kind: container
+  docker:
+    context: .
+    dockerfile: ./Dockerfile
 
 startCommand:
   type: http
+  path: /mcp
+  # Optional health check (server may ignore):
+  healthCheck:
+    path: /mcp/health
 
+  # Session config -> renders **Connect form**
   configSchema:
     type: object
     required: ["apiToken"]
@@ -12,17 +23,24 @@ startCommand:
       apiToken:
         type: string
         title: "Marketing Miner API Token"
-        description: "This is YOUR personal API token from Marketing Miner. Stored per-connection."
+        description: "Your personal API token from Marketing Miner."
         format: password
       httpPath:
         type: string
         title: "HTTP Path"
         default: "/mcp"
 
+  # Example used by Playground/Inspect only
   exampleConfig:
     apiToken: ""
     httpPath: "/mcp"
 
+  # Map session config to env for the container (supported by container runtime)
+  env:
+    MARKETING_MINER_API_TOKEN: "{{ apiToken }}"
+    MCP_HTTP_PATH: "{{ httpPath }}"
+
+  # For runtimes that prefer computing the command/env dynamically
   commandFunction: |-
     (config) => ({
       command: "python",
