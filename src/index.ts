@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import http from 'http';
+import { URL } from 'url';
 import { 
   CallToolRequestSchema, 
   ListToolsRequestSchema,
@@ -301,15 +303,64 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   throw new Error(`Neznámý tool: ${name}`);
 });
 
-// Spuštění serveru
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  // Server je připraven - žádné console výstupy!
-}
+// Spuštění HTTP(SSE) serveru pro MCP (kompatibilní se Smithery SHTTP/SSE)
+const host = process.env.HOST || '0.0.0.0';
+const port = parseInt(process.env.PORT || '8000', 10);
+const mcpPath = process.env.MCP_HTTP_PATH || '/mcp';
 
-main().catch((error) => {
-  // Log jen do stderr při kritické chybě
-  process.stderr.write(`Kritická chyba serveru: ${error}\n`);
-  process.exit(1);
+// Uložiště aktivních SSE transportů podle sessionId
+const sessionIdToTransport = new Map<string, SSEServerTransport>();
+
+const httpServer = http.createServer(async (req, res) => {
+  try {
+    const urlPath = (req.url || '').split('?')[0];
+    const accept = (req.headers['accept'] || '').toString();
+
+    // Healthcheck (pokud klient nechce SSE)
+    if (req.method === 'GET' && urlPath === mcpPath && !accept.includes('text/event-stream')) {
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      res.end('OK');
+      return;
+    }
+
+    // MCP SSE endpoint (GET s Accept: text/event-stream)
+    if (req.method === 'GET' && urlPath === mcpPath && accept.includes('text/event-stream')) {
+      // Transport vyžaduje endpoint string (pro následné POST zprávy)
+      const transport = new SSEServerTransport(mcpPath, res);
+      await server.connect(transport);
+      // Po connectu má transport přidělené sessionId, ulož ho pro POST routing
+      const sid = (transport as any).sessionId as string;
+      if (sid) {
+        sessionIdToTransport.set(sid, transport);
+      }
+      return;
+    }
+
+    // MCP POST zprávy (body -> JSON-RPC) na stejné cestě s parametrem sessionId
+    if (req.method === 'POST' && urlPath === mcpPath) {
+      const fullUrl = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+      const sid = fullUrl.searchParams.get('sessionId') || '';
+      const transport = sid ? sessionIdToTransport.get(sid) : undefined;
+      if (!transport) {
+        res.writeHead(400).end('Missing or invalid sessionId');
+        return;
+      }
+      await (transport as any).handlePostMessage(req, res);
+      return;
+    }
+
+    res.writeHead(404, { 'content-type': 'text/plain' });
+    res.end('Not Found');
+  } catch (error) {
+    // Kritické chyby logujeme jen do stderr
+    process.stderr.write(`Kritická chyba HTTP handleru: ${error}\n`);
+    try {
+      res.writeHead(500, { 'content-type': 'text/plain' });
+      res.end('Internal Server Error');
+    } catch (_) {
+      // ignore
+    }
+  }
 });
+
+httpServer.listen(port, host);

@@ -5,7 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
-const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
+const sse_js_1 = require("@modelcontextprotocol/sdk/server/sse.js");
+const http_1 = __importDefault(require("http"));
+const url_1 = require("url");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const axios_1 = __importDefault(require("axios"));
 // Marketing Miner API konfigurace
@@ -262,14 +264,59 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
     }
     throw new Error(`Neznámý tool: ${name}`);
 });
-// Spuštění serveru
-async function main() {
-    const transport = new stdio_js_1.StdioServerTransport();
-    await server.connect(transport);
-    // Server je připraven - žádné console výstupy!
-}
-main().catch((error) => {
-    // Log jen do stderr při kritické chybě
-    process.stderr.write(`Kritická chyba serveru: ${error}\n`);
-    process.exit(1);
+// Spuštění HTTP(SSE) serveru pro MCP (kompatibilní se Smithery SHTTP/SSE)
+const host = process.env.HOST || '0.0.0.0';
+const port = parseInt(process.env.PORT || '8000', 10);
+const mcpPath = process.env.MCP_HTTP_PATH || '/mcp';
+// Uložiště aktivních SSE transportů podle sessionId
+const sessionIdToTransport = new Map();
+const httpServer = http_1.default.createServer(async (req, res) => {
+    try {
+        const urlPath = (req.url || '').split('?')[0];
+        const accept = (req.headers['accept'] || '').toString();
+        // Healthcheck (pokud klient nechce SSE)
+        if (req.method === 'GET' && urlPath === mcpPath && !accept.includes('text/event-stream')) {
+            res.writeHead(200, { 'content-type': 'text/plain' });
+            res.end('OK');
+            return;
+        }
+        // MCP SSE endpoint (GET s Accept: text/event-stream)
+        if (req.method === 'GET' && urlPath === mcpPath && accept.includes('text/event-stream')) {
+            // Transport vyžaduje endpoint string (pro následné POST zprávy)
+            const transport = new sse_js_1.SSEServerTransport(mcpPath, res);
+            await server.connect(transport);
+            // Po connectu má transport přidělené sessionId, ulož ho pro POST routing
+            const sid = transport.sessionId;
+            if (sid) {
+                sessionIdToTransport.set(sid, transport);
+            }
+            return;
+        }
+        // MCP POST zprávy (body -> JSON-RPC) na stejné cestě s parametrem sessionId
+        if (req.method === 'POST' && urlPath === mcpPath) {
+            const fullUrl = new url_1.URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+            const sid = fullUrl.searchParams.get('sessionId') || '';
+            const transport = sid ? sessionIdToTransport.get(sid) : undefined;
+            if (!transport) {
+                res.writeHead(400).end('Missing or invalid sessionId');
+                return;
+            }
+            await transport.handlePostMessage(req, res);
+            return;
+        }
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        res.end('Not Found');
+    }
+    catch (error) {
+        // Kritické chyby logujeme jen do stderr
+        process.stderr.write(`Kritická chyba HTTP handleru: ${error}\n`);
+        try {
+            res.writeHead(500, { 'content-type': 'text/plain' });
+            res.end('Internal Server Error');
+        }
+        catch (_) {
+            // ignore
+        }
+    }
 });
+httpServer.listen(port, host);

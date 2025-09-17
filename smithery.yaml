@@ -9,7 +9,10 @@ build:
   dockerBuildPath: "."
 
 startCommand:
-  type: "stdio"
+  type: "http"
+  path: "/mcp"
+  healthCheck:
+    path: "/mcp"
   command: "node"
   args: ["dist/index.js"]
 
