@@ -1,43 +1,49 @@
 name: "marketing-miner-mcp"
 description: "MCP server for Marketing Miner (per-user API key via Connect form)."
-version: "0.6.5"
+version: "0.6.7"
 
-runtime: "container"
-
-build:
-  dockerfile: "./Dockerfile"
-  dockerBuildPath: "."
+deployment:
+  kind: container
+  docker:
+    context: .
+    dockerfile: ./Dockerfile
 
 startCommand:
-  type: "http"
-  path: "/mcp"
+  type: http
+  path: /mcp
   healthCheck:
-    path: "/mcp"
+    # FastMCP vrací 200 na /mcp; /mcp/health obvykle není
+    path: /mcp
 
   # === Connect UI ===
   configSchema:
-    type: "object"
+    type: object
     required: ["MARKETING_MINER_API_TOKEN"]
     properties:
       MARKETING_MINER_API_TOKEN:
-        type: "string"
+        type: string
         title: "Marketing Miner API Token"
         description: "Váš osobní API token z Marketing Mineru."
-        format: "password"
+        format: password
+      MCP_HTTP_PATH:
+        type: string
+        title: "HTTP Path"
+        default: "/mcp"
 
   exampleConfig:
     MARKETING_MINER_API_TOKEN: ""
+    MCP_HTTP_PATH: "/mcp"
 
   # === Mapování Connect -> ENV + CLI fallback ===
   commandFunction: |-
     (config) => ({
       command: "python",
-      args: ["server.py", "--api-token", (config.MARKETING_MINER_API_TOKEN ?? config.apiToken ?? "")],
+      args: ["server.py", "--api-token", (config.MARKETING_MINER_API_TOKEN || "")],
       env: {
-        MARKETING_MINER_API_TOKEN: (config.MARKETING_MINER_API_TOKEN ?? config.apiToken ?? ""),
-        MCP_HTTP_PATH: "/mcp",
-        HOST: "0.0.0.0",
-        PORT: process.env.PORT,    // Smithery dá např. 8081
-        PYTHONUNBUFFERED: "1"
+        "MARKETING_MINER_API_TOKEN": (config.MARKETING_MINER_API_TOKEN || ""),
+        "MCP_HTTP_PATH": (config.MCP_HTTP_PATH || "/mcp"),
+        "HOST": "0.0.0.0",
+        "PORT": process.env.PORT,   // Smithery předá např. 8081
+        "PYTHONUNBUFFERED": "1"
       }
     }))
