@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 import os
 import argparse
+import json
 import sys
 import traceback
 import httpx
@@ -8,9 +9,8 @@ from fastmcp import FastMCP
 
 # =========================
 #  Marketing Miner MCP (2025)
-#  - STDIO first
-#  - Token z ENV i z CLI (--api-token)
-#  - Bezpečná diagnostika (loguje jen délku tokenu)
+#  - Streamable HTTP first (Smithery)
+#  - Token z ENV / --api-token / session JSON
 # =========================
 
 mcp = FastMCP("marketing-miner")
@@ -19,36 +19,90 @@ API_BASE = "https://profilers-api.marketingminer.com"
 SUGGESTIONS_TYPES = ["questions", "new", "trending"]
 LANGUAGES = ["cs", "sk", "pl", "hu", "ro", "gb", "us"]
 
+# Možné názvy proměnných pro token (pro jistotu)
+POSSIBLE_ENV_KEYS = [
+    "MARKETING_MINER_API_TOKEN",
+    "MARKETING_MINER_API_KEY",
+    "MARKETING_MINER_TOKEN",
+    "MM_API_TOKEN",
+    "MM_API_KEY",
+    "API_TOKEN",
+    "API_KEY",
+]
+
+
+def _find_token_in_obj(obj) -> str:
+    """Rekurzivně najde první hodnotu ve slovníku/listu, jejíž klíč obsahuje 'token' nebo 'key' a je neprázdná."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, str) and v and (("token" in k.lower()) or ("key" in k.lower())):
+                return v
+            sub = _find_token_in_obj(v)
+            if sub:
+                return sub
+    elif isinstance(obj, list):
+        for item in obj:
+            sub = _find_token_in_obj(item)
+            if sub:
+                return sub
+    return ""
+
 
 def resolve_token() -> str:
-    """Vrátí API token z ENV nebo z CLI (--api-token)."""
-    env_token = os.getenv("MARKETING_MINER_API_TOKEN", "")
-    if env_token:
-        return env_token
+    """
+    Získá API token prioritně z ENV, poté z CLI (--api-token),
+    a nakonec z případného session JSONu v ENV (pokud hostitel takto config přibaluje).
+    """
+    # 1) ENV (více názvů)
+    for key in POSSIBLE_ENV_KEYS:
+        val = os.getenv(key, "")
+        if val:
+            return val
+
+    # 2) CLI fallback
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--api-token", default="")
-    parser.add_argument("--stdio", action="store_true")  # jen flag, nic víc
+    # toleruj neznámé argumenty (FastMCP/hostitel je může přidat)
     args, _ = parser.parse_known_args()
-    return args.api_token or ""
+    if args.api_token:
+        return args.api_token
+
+    # 3) Session JSON v ENV (některé platformy takto posílají config)
+    for suspect in ("SMITHERY_SESSION_CONFIG", "SMITHERY_CONFIG", "MCP_SESSION_CONFIG"):
+        raw = os.getenv(suspect, "")
+        if not raw:
+            continue
+        try:
+            cfg = json.loads(raw)
+            tok = _find_token_in_obj(cfg)
+            if tok:
+                return tok
+        except Exception:
+            pass
+
+    return ""
 
 
 API_TOKEN = resolve_token()
 
 
 async def make_mm_request(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Volání Marketing Miner Profilers API s ošetřením chyb."""
+    """
+    Volání Marketing Miner Profilers API s ošetřením chyb.
+    """
     if not API_TOKEN:
         return {
             "status": "error",
             "message": "Chyba: API token pro Marketing Miner není nastaven. Prosím, nastavte ho v konfiguraci.",
         }
+
     async with httpx.AsyncClient() as client:
         try:
-            params = dict(params or {})
-            params["api_token"] = API_TOKEN
-            r = await client.get(url, params=params, timeout=30.0)
-            r.raise_for_status()
-            return r.json()
+            _params = dict(params or {})
+            _params["api_token"] = API_TOKEN
+            resp = await client.get(url, params=_params, timeout=30.0)
+            resp.raise_for_status()
+            return resp.json()
         except Exception as e:
             return {"status": "error", "message": f"Chyba při volání Marketing Miner API: {str(e)}"}
 
@@ -60,7 +114,12 @@ async def get_keyword_suggestions(
     suggestions_type: Optional[str] = None,
     with_keyword_data: Optional[bool] = False,
 ) -> str:
-    """Získá návrhy klíčových slov z Marketing Miner API."""
+    """
+    Získá návrhy klíčových slov z Marketing Miner API.
+    lang: cs/sk/pl/hu/ro/gb/us
+    suggestions_type: questions/new/trending (volitelné)
+    with_keyword_data: bool (volitelné)
+    """
     if lang not in LANGUAGES:
         return f"Nepodporovaný jazyk: {lang}."
     if suggestions_type and suggestions_type not in SUGGESTIONS_TYPES:
@@ -96,9 +155,13 @@ async def get_keyword_suggestions(
 
 @mcp.tool()
 async def get_search_volume_data(lang: str, keyword: str) -> str:
-    """Získá data o hledanosti klíčového slova z Marketing Miner API."""
+    """
+    Získá data o hledanosti klíčového slova z Marketing Miner API.
+    lang: cs/sk/pl/hu/ro/gb/us
+    """
     if lang not in LANGUAGES:
         return f"Nepodporovaný jazyk: {lang}."
+
     url = f"{API_BASE}/keywords/search-volume-data"
     params = {"lang": lang, "keyword": keyword}
     data = await make_mm_request(url, params)
@@ -122,30 +185,21 @@ async def get_search_volume_data(lang: str, keyword: str) -> str:
     return "Neočekávaný formát odpovědi z API"
 
 
-@mcp.tool()
-async def debug_status() -> str:
-    """Bezpečná diagnostika – vrátí délku tokenu + základní parametry (bez vyzrazení tajemství)."""
-    host = os.getenv("HOST", "N/A")
-    port = os.getenv("PORT", "N/A")
-    path = os.getenv("MCP_HTTP_PATH", "N/A")
-    masked = f"{len(API_TOKEN)} chars" if API_TOKEN else "EMPTY"
-    return f"DEBUG | host={host} port={port} path={path} | token={masked}"
-
-
 if __name__ == "__main__":
-    # Preferuj STDIO, HTTP až když STDIO selže (nebo když běžíš lokálně bez Smithery)
+    # Smithery (remote) vyžaduje streamable HTTP; stdio bývá vypnuto
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     path = os.getenv("MCP_HTTP_PATH", "/mcp")
 
+    # Bezpečná diagnostika do logu: ukážeme jen délku tokenu
     masked = f"{len(API_TOKEN)} chars" if API_TOKEN else "EMPTY"
     print(f"[MCP] Boot path={path} host={host} port={port} | token={masked}", flush=True)
 
-    for transport in ("stdio", "http", "ssehttp", "shttp", "sse"):
+    # Preferuj HTTP na hostingu, další transporty jako fallbacky (lokální běh apod.)
+    for transport in ("http", "ssehttp", "shttp", "sse", "stdio"):
         try:
             print(f"[MCP] Trying transport={transport}", flush=True)
             if "http" in transport:
-                # FastMCP HTTP endpoint je na /mcp (MCP specifikace počítá s jediným endpointem)
                 mcp.run(transport=transport, host=host, port=port, path=path)
             else:
                 mcp.run(transport=transport)
