@@ -8,33 +8,33 @@ build:
   dockerfile: "./Dockerfile"
   dockerBuildPath: "."
 
+# === Connect UI (přesunuto na hlavní úroveň) ===
+configSchema:
+  type: "object"
+  required: ["MARKETING_MINER_API_TOKEN"]
+  properties:
+    MARKETING_MINER_API_TOKEN:
+      type: "string"
+      title: "Marketing Miner API Token"
+      description: "Váš osobní API token z Marketing Mineru."
+      format: "password"
+
+exampleConfig:
+  MARKETING_MINER_API_TOKEN: ""
+
 startCommand:
   type: "http"
   path: "/mcp"
   healthCheck:
     path: "/mcp"   # FastMCP typicky odpoví 200 na /mcp
 
-  # === Connect UI (musí být uvnitř startCommand) ===
-  configSchema:
-    type: "object"
-    required: ["MARKETING_MINER_API_TOKEN"]
-    properties:
-      MARKETING_MINER_API_TOKEN:
-        type: "string"
-        title: "Marketing Miner API Token"
-        description: "Váš osobní API token z Marketing Mineru."
-        format: "password"
-
-  exampleConfig:
-    MARKETING_MINER_API_TOKEN: ""
-
   # === Mapování Connect -> ENV + CLI fallback ===
   commandFunction: |-
     (config) => ({
       command: "python",
-      args: ["server.py", "--api-token", (config.MARKETING_MINER_API_TOKEN ?? "")],
+      args: ["server.py", "--api-token", (config?.MARKETING_MINER_API_TOKEN ?? "")],
       env: {
-        MARKETING_MINER_API_TOKEN: (config.MARKETING_MINER_API_TOKEN ?? ""),
+        MARKETING_MINER_API_TOKEN: (config?.MARKETING_MINER_API_TOKEN ?? ""),
         MCP_HTTP_PATH: "/mcp",
         HOST: "0.0.0.0",
         PORT: process.env.PORT,   // Smithery předá např. 8081
