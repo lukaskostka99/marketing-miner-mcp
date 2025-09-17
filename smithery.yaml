@@ -14,6 +14,7 @@ startCommand:
   healthCheck:
     path: /mcp/health
 
+  # Tato sekce generuje formulář v UI
   configSchema:
     type: object
     required: ["apiToken"]
@@ -28,12 +29,13 @@ startCommand:
         title: "HTTP Path"
         default: "/mcp"
 
-  exampleConfig:
-    apiToken: ""
-    httpPath: "/mcp"
-
-  # --- TATO SEKCE JE NEZBYTNÁ ---
-  # Říká platformě, aby hodnoty z configSchema aktivně předávala dál.
+  # Tato sekce říká Smithery: "Vezmi hodnotu z pole 'apiToken' 
+  # a nastav ji jako proměnnou prostředí MARKETING_MINER_API_TOKEN pro server."
   env:
     MARKETING_MINER_API_TOKEN: "{{ apiToken }}"
     MCP_HTTP_PATH: "{{ httpPath }}"
+
+  # Příklad pro interní nástroje (Playground/Inspect)
+  exampleConfig:
+    apiToken: "" # Pro testování se použije prázdný token
+    httpPath: "/mcp"
