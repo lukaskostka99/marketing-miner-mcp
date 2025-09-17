@@ -14,7 +14,6 @@ startCommand:
   healthCheck:
     path: /mcp/health
 
-  # Formulář, který se zobrazí uživateli v UI
   configSchema:
     type: object
     required: ["apiToken"]
@@ -33,10 +32,8 @@ startCommand:
     apiToken: ""
     httpPath: "/mcp"
 
-  # TATO FUNKCE JE KLÍČOVÁ.
-  # Dynamicky vytváří příkaz pro spuštění serveru a nastavuje proměnné
-  # prostředí na základě hodnot zadaných uživatelem ve formuláři (config).
-  # Toto je správný způsob, jak předat klíč serveru.
+  # Tato funkce je nezbytná pro dynamické předání klíče z formuláře
+  # do proměnné prostředí kontejneru.
   commandFunction: |-
     (config) => ({
       command: "python",
